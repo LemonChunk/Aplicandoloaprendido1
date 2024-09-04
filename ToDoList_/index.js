@@ -1,15 +1,6 @@
-const teclado=require("prompt-sync")();
+import promptSync from 'prompt-sync';
+const teclado = promptSync();
 let fechaActual = new Date();
-//structs
-let tareas =  {
-    titulo: String,
-    descripcion: String,
-    estado: String,
-    fechaDeCreacion: Date,
-    ultimoCambio: Date,
-    vencimiento: Date,
-    dificultad: String
-}
 //funciones
 function crearTarea(titulo = "Sin título", descripcion = "Sin descripción", estado = "P", vencimiento = "Ninguna", dificultad = "F") {
     return {
@@ -29,7 +20,7 @@ function limpiarPantalla() {
     process.stdout.write('\x1Bc'); // o '\033c'
 }
 function esAnioBisiesto(anio) {
-    return (año % 4 === 0 && anio % 100 !== 0);
+    return (anio % 4 === 0 && anio % 100 !== 0);
 }
 function pedirFechaVencimiento(){
     let anio, mes, dia, band=-1, hora, fechaVencimiento;
@@ -96,6 +87,18 @@ function menuPrincipal(){
     console.log("[1] Ver mis tareas.\n[2] Buscar una tarea.\n[3] Agregar una tarea.\n[0] Salir.");
     let opcion = teclado("Su opción: ");
     return opcion;
+}
+function ordenarTareas(){
+    let tareaAux = crearTarea();
+    for(let i=0;i<listaDeTareas.length;i++){
+        for(let j=0;j<listaDeTareas.length-1;j++){
+            if(listaDeTareas[j].titulo>listaDeTareas[j+1].titulo){
+                tareaAux=listaDeTareas[j];
+                listaDeTareas[j]=listaDeTareas[j+1];
+                listaDeTareas[j+1]=tareaAux;
+            }
+        }
+    }
 }
 function menuTareas(){
     console.log("¿Qué tareas deseas ver?")
@@ -173,14 +176,17 @@ function verConCondicion(s){
         }
     }
     if(band==0){
-        console.log("Sin tareas con este estado.");
+        console.log("No tienes tareas con este estado.");
+        esperarTeclaParaContinuar();
     }
-    verDetalles(arrayIndices);
+    else{
+        verDetalles(arrayIndices);
+    }
 }
 function mostrarTarea(i){
+    console.log("-----------------------------------");
     console.log(`Título: ${listaDeTareas[i].titulo}.`);
     console.log(`Descripción: ${listaDeTareas[i].descripcion}.`);
-    console.log(`Estado: ${listaDeTareas[i].estado}`);
     if(listaDeTareas[i].estado=="P"){
         console.log("Estado: Pendiente.");
     }
@@ -211,21 +217,23 @@ function mostrarTarea(i){
     console.log(`Fecha de creación: ${listaDeTareas[i].fechaDeCreacion}.`);
     console.log(`Fecha de última modificación: ${listaDeTareas[i].ultimoCambio}.`);
     console.log(`Fecha de vencimiento: ${listaDeTareas[i].vencimiento}.`);
+    console.log("-----------------------------------");
 }
 function editarTarea(i){
     let editar, fecha, tareaAux = crearTarea();
     tareaAux=listaDeTareas[i];
+    let fechaAhora = new Date();
     do{
         limpiarPantalla();
         console.log(`Estás editando la tarea ${tareaAux.titulo}`);
         console.log(`[1] editar titulo(Actual: ${tareaAux.titulo})`);
         console.log(`[2] editar Descripción(Actual: ${tareaAux.descripcion})`);
-        console.log(`[3] editar estado(Actual: ${tareaAux.estado})`);
+        console.log(`[3] editar estado(Actual: ${tareaAux.estado}, oprima [C] para marcarla como cancelada)`);
         console.log(`[4] editar dificultad(Actual: ${tareaAux.dificultad})`);
         console.log(`[5] editar fecha de Vencimiento(Actual: ${tareaAux.vencimiento}\n)`);
         console.log("Presione 0 para terminar de editarla y guardar los datos.");
         editar = teclado("Su opción: ");
-        tareaAux.ultimoCambio=fechaActual;
+        tareaAux.ultimoCambio=fechaAhora;
         limpiarPantalla();
         switch(editar){
             case "1":
@@ -244,15 +252,21 @@ function editarTarea(i){
                 console.log("Desea...\n[0]Dejar en blanco fecha de vencimiento\n[1]Modificarla fecha de vencimiento\n Cualquier otro valor permite volver atrás.");
                 fecha = teclado("Su opción: ");
                 if(fecha==="0"){
-                    tareaAux.venciento="Ninguna";
+                    tareaAux.vencimiento="Ninguna";
                 }
                 else{
                     if(fecha==="1"){
-                        tareaAux.venciento=ingresarFechaVencimiento();
+                        tareaAux.vencimiento=ingresarFechaVencimiento();
                     }
                 }
                 break;
+            case "C":
+                console.log("Usted ha marcado a la tarea como cancelada.");
+                esperarTeclaParaContinuar();
+                tareaAux.estado="Cancelada";
+                break;
             case "0":
+                ordenarTareas();
                 console.log("Datos guardados con éxito.\n Volviendo al menú anterior.");
                 esperarTeclaParaContinuar();
                 break;
@@ -275,11 +289,14 @@ function verDetalles(indices){
     let index, editar;
     console.log("¿Deseas ver los detalles de alguna?\nIntroduce el número para verla o 0 para volver.");
     index = parseInt(teclado("Su opción: "));
-    while((isNaN(index) || !estaIndice(indices, index-1)){
-        index = parseInt(teclado("Opción inválida, ingrese nuevamente: "));
+    if(index!=0){
+        while(isNaN(index) || !estaIndice(indices, index-1)){
+            index = parseInt(teclado("Opción inválida, ingrese nuevamente: "));
+        }
     }
+    
     limpiarPantalla();
-    if(index==="X"){
+    if(index===0){
         console.log("Volviendo al menú anterior.");
     }
     else{
@@ -302,27 +319,30 @@ function verDetalles(indices){
 function buscarTarea(cadena){
     let arrayIndices=[], band=0;
     for(let i=0;i<listaDeTareas.length;i++){
-        if(listaDeTareas[i].titulo.includes(cadena)){
-            band++;
+        if(listaDeTareas[i].titulo.toLowerCase().includes(cadena.toLowerCase())){
             arrayIndices.push(i);
+            band++
         }
     }
-    if(band==0){
+    if(band===0){
         console.log("No hay tareas relacionadas con la búsqueda.");
         esperarTeclaParaContinuar();
     }
     else{
-        console.log(`Hubieron ${band} coincidendias en la búsqueda: `);
-        for(let i=0;i<arrayIndices.length;i++){
-            console.log(`[${arrayIndices[i]}] ${listaDeTareas[arrayIndices[i]].titulo} `);
-        }
-        verDetalles(arrayIndices);
+        mostrarCoincidencias(arrayIndices, band);
     }
+}
+function mostrarCoincidencias(array, b){
+    console.log(`Hubieron ${b} coincidencias en la búsqueda: `);
+    for(let i=0;i<array.length;i++){
+        console.log(`[${array[i]+1}] ${listaDeTareas[array[i]].titulo} `);
+    }
+    verDetalles(array);
 }
 function opcion1(){
     let menuVer=-1;
     if(listaDeTareas.length===0){
-        console.log("No tienes tareas.");
+        console.log("No tienes tareas agendadas para ver.");
         esperarTeclaParaContinuar();
     }
     else {
@@ -345,12 +365,14 @@ function opcion1(){
                     break;
                 case "0":
                     console.log("Volviendo al menú anterior.");
+                    esperarTeclaParaContinuar();
                     break;
                 default:
                     console.log("Opción inválida.");
+                    esperarTeclaParaContinuar();
                     break;
             }
-            esperarTeclaParaContinuar();
+            
         }while(menuVer!=0);
     }
 }
@@ -401,6 +423,7 @@ function opcion3(){
                 }
                 else{
                     listaDeTareas.push(tareaNueva);
+                    ordenarTareas();
                     console.log(`¡Tarea creada con éxito!`);
                     esperarTeclaParaContinuar();
                 }
